@@ -8,12 +8,20 @@ const connectDB = require("./config/db");
 const userRouter = require("./routes/userRouter");
 const productRouter = require("./routes/productRouter");
 const adminRouter = require("./routes/adminRouter");
+const passportFacebookRouter = require("./routes/passportFacebook");
+const passportGoogleRouter = require("./routes/passportGoogle");
 const { errHandle } = require("./middleware/middleware");
 const { getAllMap } = require("./controller/mapController");
 
+const passport = require("passport");
+const session = require("express-session");
 const swaggerUI = require("swagger-ui-express");
 const swaggerJSDoc = require("swagger-jsdoc");
 
+const { passportFacebook, passportGoogle } = require("./config/passport");
+
+passportFacebook();
+passportGoogle();
 connectDB();
 
 // api document swagger
@@ -32,6 +40,18 @@ const swaggerSpec = swaggerJSDoc(options);
 
 var app = express();
 
+app.use("/api-docs", swaggerUI.serve, swaggerUI.setup(swaggerSpec));
+
+app.get("/", (req, res) => {
+  res.render("index.ejs");
+});
+
+app.get("/testpaypal", (req, res) => {
+  res.render("paypal.ejs");
+});
+
+app.get("/api/maps", getAllMap);
+
 // view engine setup
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "ejs");
@@ -40,18 +60,28 @@ app.use(logger("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, "../public")));
+app.use(express.static(path.join(__dirname, "public")));
 
+// use session
+app.use(
+  session({
+    secret: "keyboard cat",
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: false },
+  })
+);
+
+// passport facebook
+app.use(passport.initialize());
+app.use(passport.session());
+
+// router
 app.use("/api/users", userRouter);
 app.use("/api/products", productRouter);
 app.use("/api/admin", adminRouter);
-
-app.use("/api-docs", swaggerUI.serve, swaggerUI.setup(swaggerSpec));
-
-app.get("/testpaypal", (req, res) => {
-  res.render("paypal.ejs");
-});
-app.get("/api/maps", getAllMap);
+app.use("/api/auth/facebook", passportFacebookRouter);
+app.use("/api/auth/google", passportGoogleRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
