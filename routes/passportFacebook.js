@@ -21,7 +21,7 @@ router.get(
   function (req, res) {
     req.user = user;
     console.log("this user --- ", user);
-
+    // localStorage.setItem
     // Successful authentication, redirect home.
     res.redirect("/");
   }
